@@ -109,7 +109,7 @@ class BrowserExecutor(
                 targetBounds = domBounds,
                 targetIdentifier = targetIdent,
                 textLength = if (actionType == VisualActionType.TYPE) (step.arguments["text"]?.length ?: 0) else 0,
-                typedMaskedText = if (actionType == VisualActionType.TYPE) "${step.arguments["text"]?.take(2)?.takeLast(2)?.takeIf { it.isNotEmpty() } ?: "***".padTo(2, '*')" else null,
+                typedMaskedText = if (actionType == VisualActionType.TYPE) { step.arguments["text"]?.take(2)?.takeLast(2)?.takeIf { it.isNotEmpty() } ?: "***".padTo(2, '*') } else null,
                 scrollDeltaY = if (actionType == VisualActionType.SCROLL && step.arguments["direction"] == "UP") -1f else 1f,
                 operationalDescription = step.userSummary,
                 isPositionAvailable = domBounds != null
