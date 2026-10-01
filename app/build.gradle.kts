@@ -21,10 +21,16 @@ android {
 
     signingConfigs {
         create("debugConfig") {
-            storeFile = file("${rootDir}/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
+            val debugKeystore = file("${rootDir}/debug.keystore")
+            if (debugKeystore.exists()) {
+                storeFile = debugKeystore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            } else {
+                // Use default Android debug signing (auto-generated keystore)
+                // This is the standard CI-friendly approach
+            }
         }
         create("release") {
             val ksFile = file("release.keystore")

@@ -2,9 +2,11 @@ package com.lichiai.browser.recovery
 
 import com.lichiai.browser.api.BrowserCapabilityAPI
 import com.lichiai.browser.context.BrowserTaskContext
+import com.lichiai.browser.engine.ChromiumWebViewEngine
 import com.lichiai.browser.events.BrowserEvent
 import com.lichiai.browser.events.BrowserEventBus
 import com.lichiai.browser.perception.PagePerceptionSnapshot
+import com.lichiai.browser.runtime.BrowserConditionWaiter
 import com.lichiai.browser.verifier.BrowserVerifier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,7 +23,8 @@ data class RecoveryAttemptResult(
  */
 class BrowserRecovery(
     private val capabilityApi: BrowserCapabilityAPI,
-    private val eventBus: BrowserEventBus
+    private val eventBus: BrowserEventBus,
+    private val engineProvider: () -> ChromiumWebViewEngine?
 ) {
 
     suspend fun attemptRecovery(
@@ -41,7 +44,7 @@ class BrowserRecovery(
                 val url = arguments["url"] ?: return RecoveryAttemptResult(false, "No URL to reload")
                 val ok = capabilityApi.navigate(url)
                 if (ok) {
-                    com.lichiai.browser.runtime.BrowserConditionWaiter.waitForPageReady(timeoutMs = 5000) { capabilityApi.getPageContext().activeEngine }
+                    BrowserConditionWaiter.waitForPageReady(timeoutMs = 5000, getEngine = engineProvider)
                     val ctx = capabilityApi.getPageContext()
                     val verified = com.lichiai.browser.verifier.BrowserVerifier.verifyNavigation(url, ctx)
                     if (verified.passed) {
@@ -58,7 +61,7 @@ class BrowserRecovery(
                 val q = arguments["query"] ?: return RecoveryAttemptResult(false, "No query")
                 val ok = capabilityApi.search(q, "duckduckgo")
                 if (ok) {
-                    com.lichiai.browser.runtime.BrowserConditionWaiter.waitForDomStable(settleMs = 200L, timeoutMs = 3000) { capabilityApi.getPageContext().activeEngine }
+                    BrowserConditionWaiter.waitForDomStable(settleMs = 200L, timeoutMs = 3000, getEngine = engineProvider)
                     val ctx = capabilityApi.getPageContext()
                     val verified = com.lichiai.browser.verifier.BrowserVerifier.verifySearchResults(q, ctx)
                     if (verified.passed) {
@@ -77,7 +80,7 @@ class BrowserRecovery(
                 if (candidate != null && candidate.title.isNotBlank()) {
                     val ok = capabilityApi.clickSelector(candidate.title.take(30))
                     if (ok) {
-                        com.lichiai.browser.runtime.BrowserConditionWaiter.waitForDomStable(settleMs = 200L, timeoutMs = 3000) { capabilityApi.getPageContext().activeEngine }
+                        BrowserConditionWaiter.waitForDomStable(settleMs = 200L, timeoutMs = 3000, getEngine = engineProvider)
                         val ctx = capabilityApi.getPageContext()
                         val verified = com.lichiai.browser.verifier.BrowserVerifier.verifyClick(context.currentUrl, ctx)
                         if (verified.passed) {
@@ -87,10 +90,10 @@ class BrowserRecovery(
                         }
                     } else {
                         capabilityApi.reload()
-                        com.lichiai.browser.runtime.BrowserConditionWaiter.waitForPageReady(timeoutMs = 5000) { capabilityApi.getPageContext().activeEngine }
+                        BrowserConditionWaiter.waitForPageReady(timeoutMs = 5000, getEngine = engineProvider)
                         val ok2 = capabilityApi.clickCandidate(idx)
                         if (ok2) {
-                            com.lichiai.browser.runtime.BrowserConditionWaiter.waitForDomStable(settleMs = 200L, timeoutMs = 3000) { capabilityApi.getPageContext().activeEngine }
+                            BrowserConditionWaiter.waitForDomStable(settleMs = 200L, timeoutMs = 3000, getEngine = engineProvider)
                             val ctx2 = capabilityApi.getPageContext()
                             val verified2 = com.lichiai.browser.verifier.BrowserVerifier.verifyClick(context.currentUrl, ctx2)
                             if (verified2.passed) {
@@ -104,10 +107,10 @@ class BrowserRecovery(
                     }
                 } else {
                     capabilityApi.reload()
-                    com.lichiai.browser.runtime.BrowserConditionWaiter.waitForPageReady(timeoutMs = 5000) { capabilityApi.getPageContext().activeEngine }
+                    BrowserConditionWaiter.waitForPageReady(timeoutMs = 5000, getEngine = engineProvider)
                     val ok3 = capabilityApi.clickCandidate(idx)
                     if (ok3) {
-                        com.lichiai.browser.runtime.BrowserConditionWaiter.waitForDomStable(settleMs = 200L, timeoutMs = 3000) { capabilityApi.getPageContext().activeEngine }
+                        BrowserConditionWaiter.waitForDomStable(settleMs = 200L, timeoutMs = 3000, getEngine = engineProvider)
                         val ctx3 = capabilityApi.getPageContext()
                         val verified3 = com.lichiai.browser.verifier.BrowserVerifier.verifyClick(context.currentUrl, ctx3)
                         if (verified3.passed) {

@@ -10,11 +10,13 @@ import com.lichiai.agentvision.model.VisualSource
 import com.lichiai.agentvision.telemetry.AgentVisionTelemetryHub
 import com.lichiai.browser.api.BrowserCapabilityAPI
 import com.lichiai.browser.context.BrowserTaskContext
+import com.lichiai.browser.engine.ChromiumWebViewEngine
 import com.lichiai.browser.events.BrowserActionLog
 import com.lichiai.browser.events.BrowserEvent
 import com.lichiai.browser.events.BrowserEventBus
 import com.lichiai.browser.planner.BrowserActionStep
 import com.lichiai.browser.recovery.BrowserRecovery
+import com.lichiai.browser.runtime.BrowserConditionWaiter
 import com.lichiai.browser.security.BrowserSecurityManager
 import com.lichiai.browser.tools.BrowserToolRegistry
 import com.lichiai.browser.verifier.BrowserVerifier
@@ -36,7 +38,8 @@ class BrowserExecutor(
     private val capabilityApi: BrowserCapabilityAPI,
     private val eventBus: BrowserEventBus,
     private val actionLog: BrowserActionLog,
-    private val recovery: BrowserRecovery
+    private val recovery: BrowserRecovery,
+    private val engineProvider: () -> ChromiumWebViewEngine?
 ) {
 
     suspend fun executeStep(
@@ -109,7 +112,7 @@ class BrowserExecutor(
                 targetBounds = domBounds,
                 targetIdentifier = targetIdent,
                 textLength = if (actionType == VisualActionType.TYPE) (step.arguments["text"]?.length ?: 0) else 0,
-                typedMaskedText = if (actionType == VisualActionType.TYPE) { step.arguments["text"]?.take(2)?.takeLast(2)?.takeIf { it.isNotEmpty() } ?: "***".padTo(2, '*') } else null,
+                typedMaskedText = if (actionType == VisualActionType.TYPE) { step.arguments["text"]?.take(2)?.takeLast(2)?.takeIf { it.isNotEmpty() } ?: "**" } else null,
                 scrollDeltaY = if (actionType == VisualActionType.SCROLL && step.arguments["direction"] == "UP") -1f else 1f,
                 operationalDescription = step.userSummary,
                 isPositionAvailable = domBounds != null
@@ -122,7 +125,7 @@ class BrowserExecutor(
 
         // 4. Deterministic Verification
         if (initialOk && step.requiresVerification) {
-            com.lichiai.browser.runtime.BrowserConditionWaiter.waitForDomStable(settleMs = 200L, timeoutMs = 3000) { capabilityApi.getPageContext().activeEngine }
+            BrowserConditionWaiter.waitForDomStable(settleMs = 200L, timeoutMs = 3000, getEngine = engineProvider)
             val updatedContext = capabilityApi.getPageContext()
             val verifyResult = when (step.toolName) {
                 "navigate" -> BrowserVerifier.verifyNavigation(step.arguments["url"] ?: "", updatedContext)

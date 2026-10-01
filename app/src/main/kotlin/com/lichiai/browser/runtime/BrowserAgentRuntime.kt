@@ -406,7 +406,7 @@ class BrowserAgentRuntime(
      * Explicit goal verification returning structured GoalVerificationResult (Phase 11).
      * No generic PAGE_LOADED success fallback.
      */
-    fun verifyGoal(intent: BrowserTaskIntent, snapshot: PagePerceptionSnapshot): GoalVerificationResult {
+    suspend fun verifyGoal(intent: BrowserTaskIntent, snapshot: PagePerceptionSnapshot): GoalVerificationResult {
         val currentUrl = snapshot.url
         val currentTitle = snapshot.title
         val lowerGoal = intent.goal.lowercase(java.util.Locale.ROOT)
@@ -709,8 +709,8 @@ class BrowserAgentRuntime(
                 post.url != pre.url || post.title != pre.title || post.generationId != pre.generationId || post.loadingState.scrollY != pre.loadingState.scrollY
             }
             is TypedBrowserAction.TypeText -> {
-                val targetIdx = (action as TypedBrowserAction.TypeText).targetIdOrIndex
-                val actualValue = post.semanticElements.firstOrNull { it.originalIndex == targetIdx }?.value?.ifBlank { "" } ?: ""
+                val targetIdOrIndex = (action as TypedBrowserAction.TypeText).targetIdOrIndex
+                val actualValue = post.semanticElements.firstOrNull { it.semanticId == targetIdOrIndex || it.originalIndex == targetIdOrIndex.toIntOrNull() }?.value?.ifBlank { "" } ?: ""
                 com.lichiai.browser.verifier.BrowserVerifier.verifyTypeText(
                     expectedText = (action as TypedBrowserAction.TypeText).text,
                     actualValue = actualValue,

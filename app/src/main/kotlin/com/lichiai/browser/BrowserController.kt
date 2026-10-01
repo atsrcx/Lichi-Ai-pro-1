@@ -50,8 +50,8 @@ class BrowserController(
 
     private val llmClient = BrowserLLMClient(providerManager)
     val toolRegistry = BrowserToolRegistry(this)
-    private val recovery = BrowserRecovery(this, eventBus)
-    private val executor = BrowserExecutor(toolRegistry, this, eventBus, actionLog, recovery)
+    private val recovery = BrowserRecovery(this, eventBus, { _activeEngine.value })
+    private val executor = BrowserExecutor(toolRegistry, this, eventBus, actionLog, recovery, { _activeEngine.value })
 
     val agent = BrowserAgent(
         capabilityApi = this,
@@ -189,13 +189,14 @@ class BrowserController(
 
     override suspend fun clickCandidate(index: Int, targetUrl: String?): Boolean = withContext(Dispatchers.Main) {
         val eng = _activeEngine.value ?: return@withContext false
+        val initialUrl = eng.getUrl()
         val candidates = if (targetUrl.isNullOrBlank()) eng.extractCandidateLinks() else emptyList()
         val candidate = candidates.firstOrNull { it.index == index }
         val finalUrl = targetUrl ?: candidate?.url
 
         val clicked = eng.clickCandidateByIndex(index, finalUrl)
         if (!finalUrl.isNullOrBlank() && finalUrl.startsWith("http")) {
-            BrowserConditionWaiter.waitForUrlChange(finalUrl, getEngine = { _activeEngine.value })
+            BrowserConditionWaiter.waitForUrlChange(initialUrl, getEngine = { _activeEngine.value })
             if (_activeEngine.value?.getUrl() != finalUrl) {
                 navigate(finalUrl)
                 return@withContext true
